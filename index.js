@@ -14,8 +14,8 @@ app.get('/',function (req, res)  {
 io.on('connection', function(socket)  {
     //..................................................................
          // login
-         socket.on('logInuser', function(data) {
-               socket.emit('logedIn', { name: data.name });
+               socket.on('logInuser', function(userName) {
+               socket.emit('logedIn', userName);
         });
     //....................................................................    
     // Create a new game room and notify the creator of game.
@@ -24,13 +24,13 @@ io.on('connection', function(socket)  {
         
         socket.join(`Tournament-${++rooms}`);
         var roomm=`Tournament-${rooms}`
-        clients = io.sockets.adapter.rooms[roomm].sockets
+        participants = io.sockets.adapter.rooms[roomm].sockets
     
-        io.in(roomm).emit('updateusers', clients,roomm)
+        io.in(roomm).emit('updateusers',  participants ,roomm)
         // io.in(roomm).emit('addUser', data.name);
         socket.emit('newTournament', { name: data.name, room: `Tournament-${rooms}` });
         io.in(data.room).emit('newTournament', { name: data.name, room: `Tournament-${rooms}` });
-        usernames = {};
+    
     });
     //.............................................................................................
 
@@ -52,7 +52,12 @@ io.on('connection', function(socket)  {
     //// Connect the other player to the tornament he requested. Show error if the tornament is full.
     socket.on('joinTournament', function (data) {
         var room = io.nsps['/'].adapter.rooms[data.room];
+        console.log("this is the below this line")
+
+        console.log(data.room)
+        console.log("this is the room")
         console.log(room);
+        console.log("this is the roomabove this line")
       
         if (room && room.length< 4) {
             socket.join(data.room);
@@ -65,8 +70,8 @@ io.on('connection', function(socket)  {
                 
             }
             console.log("............................")
-           // io.in(data.room).emit('updateusers', clients,data.room)
-            io.in(data.room).emit('addUser', data.name);
+            io.in(data.room).emit('updateusers', clients,data.room)
+          //  io.in(data.room).emit('addUser', data.name);
 
             io.in(data.room).emit('player', { name: data.name, room: data.room })
         } else {

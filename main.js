@@ -4,6 +4,7 @@
   let player;
   let game;
   let name;
+  let userName
 
   const socket = io.connect('http://localhost:8080');
 
@@ -179,32 +180,83 @@ class Tornament{
       location.reload();
     }
   }
-  //....................................................
+//...........................................................
+//....................................................
 //login clicked , modify it
 $('#logIn').on('click', function()  {
-  name = $('#userName').val();
-  if (!name) {
+  userName = $('#userName').val();
+  if (!userName) {
     alert('Please enter your name.');
     return;
   }
-  socket.emit('logInuser', { name });//see the event listiner on index
+  socket.emit('logInuser',userName);//see the event listiner on index
   // player = new Player(name, P1);
 });
 //................................................................................................
+
 // user loged In  logedIn
-socket.on('logedIn', function(data)  {//event listner for event logedIn from index
+socket.on('logedIn', function(userName)  {//event listner for event logedIn from index
   const message =
-    `Hello, ${data.name}. welcome`;
+    `Hello, ${userName}. welcome`;
   // game = new Game(data.room);
   displayPage(message);
 });
+
 //.................................................................
-  // Create a new game. Emit newGame event.
+  // Create a new tournament. Emit  event.
   $('#new').on('click', function()  {
-    socket.emit('createTournament', { name });//see the event listiner on index
+    socket.emit('createTournament',{name:userName});//see the event listiner on index
     player = new Player(name, P1);
   });
 //...............................................................................
+// New Game created by current client. Update the UI and create new Game var.
+socket.on('newTournament', function(data) {
+     const message =
+    `Hello, ${data.name}. you created a tournament with  ID: 
+      ${data.room}. Waiting for player 2...`;
+      game = new Game(data.room); 
+      tornament = new Tornament(data.room);
+      socket.emit('createGameList', data.room);  
+      tornament.displayTornamentPage(data.name)
+});
+
+socket.on('updateusers', function(paricipant,tournamentName) {
+      $('#playersDiv').empty();
+      $("#tornamentName").text(tournamentName);
+      for (var paricipantId in paricipant) {
+            var div=$("<div>")
+            div.attr("id",paricipantId).attr("class","text-white").text(paricipantId);
+            // $('#playersDiv').attr("class",clientId)
+
+          // $('#playersDiv').append('<div>' + clientId + '</div>');
+            $('#playersDiv').append(div);
+  }
+     
+  });
+//update List .....................................
+socket.on('updateGameList', function(gameName) {
+  // $('#test').append($('<li>').text(gameName));
+          $('#listOfTornaments')
+                    .append($("<option></option>")
+                    .attr("value",gameName)
+                    .text(gameName));   
+});
+
+//.........................................................................................
+  // Join an existing game on the entered roomId. Emit the joinGame event.
+  $('#join').on('click', function()  {
+      // const name = $('#nameJoin').val();
+      const roomID = $('#listOfTornaments').val();
+      // if (!name || !roomID) {
+        if ( !roomID) {
+        alert('Please enter your name and game ID.');
+        return;
+      }
+      socket.emit('joinTournament', { name, room: roomID });
+      player = new Player(name, P2);
+  });
+  //..............................................................................................
+  
   $('#makeBracket').on('click',function () {
     var players=[];
   var tornament=  $("#tornamentName").text();
@@ -217,6 +269,8 @@ socket.on('logedIn', function(data)  {//event listner for event logedIn from ind
     socket.emit('startGame',{room:tornament} );//see the event listiner on index
     
   });
+
+
   //...............................................................................
   socket.on("sendGame", function(players){
     //  var g1= players.splice(0,2)
@@ -240,58 +294,13 @@ for(player in players){
  $('#makeBracket').attr("disabled","true")
 
 })
-//.........................................................................................
-  // Join an existing game on the entered roomId. Emit the joinGame event.
-  $('#join').on('click', function()  {
-    // const name = $('#nameJoin').val();
-    const roomID = $('#listOfTornaments').val();
-    // if (!name || !roomID) {
-      if ( !roomID) {
-      alert('Please enter your name and game ID.');
-      return;
-    }
-    socket.emit('joinTournament', { name, room: roomID });
-    player = new Player(name, P2);
-  });
-  //..............................................................................................
-  // New Game created by current client. Update the UI and create new Game var.
-  socket.on('newTournament', function(data) {
-    const message =
-      `Hello, ${data.name}. you created a tournament with  ID: 
-      ${data.room}. Waiting for player 2...`;
-    game = new Game(data.room); 
-    tornament = new Tornament(data.room);
-    socket.emit('createGameList', data.room);  
-    tornament.displayTornamentPage(data.name)
-  });
-
-  socket.on('updateusers', function(clients,room) {
-    $('#playersDiv').empty();
-    $("#tornamentName").text(room);
-    for (var clientId in clients ) {
-      var div=$("<div>")
-           div.attr("id",clientId).attr("class","text-white").text(clientId);
-          // $('#playersDiv').attr("class",clientId)
-
-				// $('#playersDiv').append('<div>' + clientId + '</div>');
-           $('#playersDiv').append(div);
-		}
-       
-    });
   
   // });
    socket.on("addUser",function(name){
     $('#userDiv').append('<div>' + name + '</div>');
 
    })
-//update List .....................................
-  socket.on('updateGameList', function(gameName) {
-    // $('#test').append($('<li>').text(gameName));
-            $('#listOfTornaments')
-                      .append($("<option></option>")
-                      .attr("value",gameName)
-                      .text(gameName));   
-  });
+
 
   socket.on('player1',function (data)  {
     const message = `Hello, ${player.getPlayerName()}`;
