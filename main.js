@@ -1,9 +1,12 @@
+//2/12
 (function init() {
   const P1 = 'X';
   const P2 = 'O';
+  const P3 = 'x';
+  const P4 = 'o';
   let player;
   let game;
-  let name;
+  //let name;
   let userName
 
   const socket = io.connect('http://localhost:8080');
@@ -182,6 +185,8 @@ class Tornament{
   }
 //...........................................................
 //....................................................
+
+
 //login clicked , modify it
 $('#logIn').on('click', function()  {
   userName = $('#userName').val();
@@ -210,31 +215,32 @@ socket.on('logedIn', function(userName)  {//event listner for event logedIn from
   });
 //...............................................................................
 // New Game created by current client. Update the UI and create new Game var.
-socket.on('newTournament', function(data) {
-     const message =
-    `Hello, ${data.name}. you created a tournament with  ID: 
-      ${data.room}. Waiting for player 2...`;
+socket.on('newTournament', function(data) {// { name: data.name, room: `Tournament-${rooms}` }
+       const message =
+            `Hello, ${data.name}. you created a tournament with  ID: 
+             ${data.room}. Waiting for player 2...`;
       game = new Game(data.room); 
       tornament = new Tornament(data.room);
-      socket.emit('createGameList', data.room);  
+      socket.emit('createTournamentList', data.room);  
       tornament.displayTornamentPage(data.name)
 });
 
 socket.on('updateusers', function(paricipant,tournamentName) {
-      $('#playersDiv').empty();
-      $("#tornamentName").text(tournamentName);
-      for (var paricipantId in paricipant) {
+    //  $('#playersDiv').empty();
+       $("#tornamentName").text(tournamentName);
+        var  html="";
+     for (var i=0;i<paricipant.length;i++) {
             var div=$("<div>")
-            div.attr("id",paricipantId).attr("class","text-white").text(paricipantId);
+            div.attr("id",paricipant).attr("class","text-white").text(paricipant);
             // $('#playersDiv').attr("class",clientId)
-
-          // $('#playersDiv').append('<div>' + clientId + '</div>');
-            $('#playersDiv').append(div);
+            html+='<li class="list-group-item">'+paricipant[i]+'</li>'
+          // $('#playersDiv').append('<div>' + clientId + '</div>');          
   }
-     
+  $('#playersList').html(html)
   });
+
 //update List .....................................
-socket.on('updateGameList', function(gameName) {
+socket.on('updateTournamentList', function(gameName) {
   // $('#test').append($('<li>').text(gameName));
           $('#listOfTornaments')
                     .append($("<option></option>")
@@ -252,17 +258,26 @@ socket.on('updateGameList', function(gameName) {
         alert('Please enter your name and game ID.');
         return;
       }
-      socket.emit('joinTournament', { name, room: roomID });
-      player = new Player(name, P2);
+      socket.emit("getParticipants")
+      socket.emit('joinTournament', { name: userName, room: roomID });
+      player = new Player( userName, P2);
   });
   //..............................................................................................
   
   $('#makeBracket').on('click',function () {
     var players=[];
-  var tornament=  $("#tornamentName").text();
-    socket.emit('createBracket',{room:tornament} );//see the event listiner on index
+  var tornamentName=  $("#tornamentName").text();
+    socket.emit('createBracket',{room:tornamentName} );//see the event listiner on index
     // player = new Player(name, P1);
   });
+
+  socket.on("showBracket", function(players){//array of players
+     
+     $("#bracketOne").text( players[0] +"\t\t\t\t"+"vs"+"\t\t\t\t"+ players[2]);
+     $("#bracketTwo").text( players[1] +"\t\t\t\t\t\t"+"vs"+"\t\t\t\t"+ players[3]);
+     $('#makeBracket').attr("disabled","true")    
+    })
+    
 //.................................................................................
   $('#startTournament').on('click', function()  {
     var tornament=  $("#tornamentName").text();
@@ -270,38 +285,20 @@ socket.on('updateGameList', function(gameName) {
     
   });
 
-
   //...............................................................................
   socket.on("sendGame", function(players){
     //  var g1= players.splice(0,2)
     var playersArry=[]
-for(player in players){
-  playersArry.push(player);
-}
+     for(player in players){
+      playersArry.push(player);
+        }
     for(var i=0;i<playersArry.length;i++)
     game = new Game(playersArry[i]);
     game.displayBoard();    
     })
 //........................................................................
-socket.on("showBracket", function(players){
-//  var g1= players.splice(0,2)
-var playersArry=[]
-for(player in players){
-  playersArry.push(player);
-}
- $("#bracketOne").text( playersArry[0] +"\t\t\t\t"+"vs"+"\t\t\t\t"+ playersArry[2]);
- $("#bracketTwo").text( playersArry[1] +"\t\t\t\t\t\t"+"vs"+"\t\t\t\t"+ playersArry[3]);
- $('#makeBracket').attr("disabled","true")
 
-})
   
-  // });
-   socket.on("addUser",function(name){
-    $('#userDiv').append('<div>' + name + '</div>');
-
-   })
-
-
   socket.on('player1',function (data)  {
     const message = `Hello, ${player.getPlayerName()}`;
     $('#userHello').html(message);
@@ -310,7 +307,6 @@ for(player in players){
 
   socket.on('player2', function(data)  {
     const message = `Hello, ${data.name}`;
-
     // Create game for player 2
     game = new Game(data.room);
     game.displayBoard(message);

@@ -1,3 +1,4 @@
+//2/12/
 const express = require('express');
 const path = require('path');
 const app = express();
@@ -5,13 +6,33 @@ const server = require('http').Server(app);
 const io = require('socket.io')(server);
 
 let rooms = 0;
+var pusernames = [];
+var tornamentArray=[];
+
+
+class Tournament{
+    constructor(name){
+    this.name=name;
+    this.participants=[];
+    }
+    setParticipants(player){
+          this.participants.push(player)
+    }
+    getParticipants(){
+        return this.participants;
+    }
+    getTournamentName(){
+        return this.name;
+    }
+}
+
 app.use(express.static('.'));
 
 app.get('/',function (req, res)  {
     res.sendFile(path.join(__dirname, 'game.html'));
 });
 
-io.on('connection', function(socket)  {
+            io.on('connection', function(socket)  {
     //..................................................................
          // login
                socket.on('logInuser', function(userName) {
@@ -19,71 +40,89 @@ io.on('connection', function(socket)  {
         });
     //....................................................................    
     // Create a new game room and notify the creator of game.
-        socket.on('createTournament',function (data) {
-        console.log(data)
-        
-        socket.join(`Tournament-${++rooms}`);
-        var roomm=`Tournament-${rooms}`
-        participants = io.sockets.adapter.rooms[roomm].sockets
-    
-        io.in(roomm).emit('updateusers',  participants ,roomm)
-        // io.in(roomm).emit('addUser', data.name);
-        socket.emit('newTournament', { name: data.name, room: `Tournament-${rooms}` });
-        io.in(data.room).emit('newTournament', { name: data.name, room: `Tournament-${rooms}` });
+                    socket.on('createTournament',function (data) {//{name:userName})
+                    var username=data.name;                 
+                    console.log("....passed data ..in createTournament")
+                    console.log(data)           
+                    socket.username = username;
+                    //usernames[username] =username;
+                    socket.room = `Tournament-${++rooms}`;
+                    pusernames.push(socket.username )
+                    socket.join(socket.room) 
+
+                   var torObj=new Tournament( socket.room);
+            
+      
+                    participantsId = io.sockets.adapter.rooms[ socket.room ].sockets
+                    torObj.setParticipants(data.name);
+                    tornamentArray.push(torObj);
+                    console.log("....participant one in creat tournament")
+                    console.log(socket.username)
+                    console.log(participantsId)
+              
+
+                   io.in(socket.room ).emit('updateusers',  torObj.getParticipants() , socket.room )
+                  //change
+                  socket.emit('newTournament', { name: data.name, room: `Tournament-${rooms}` });
+                  io.in(data.room).emit('newTournament', { name: data.name, room: `Tournament-${rooms}` });
     
     });
     //.............................................................................................
-
-    //add to the list of game
-    socket.on('createGameList', (game) => {
-       socket.emit('updateGameList', game);
-        io.emit('updateGameList', game);
+                    //add to the list of tournament
+                    socket.on('createTournamentList', (tournamentName) => {//`Tournament-${rooms}`
+                    socket.emit('updateTournamentList', tournamentName);
+                    io.emit('updateTournamentList',tournamentName);
     });
     //...........................................................................................
-    socket.on("createBracket",function(data){
-        console.log(data)
-        clients = io.sockets.adapter.rooms[data.room].sockets
-       
-        io.in(data.room).emit('showBracket', clients)
-        console.log("players to break")
-           console.log(clients)
-    })
-//........................................................................................................
+   
     //// Connect the other player to the tornament he requested. Show error if the tornament is full.
-    socket.on('joinTournament', function (data) {
-        var room = io.nsps['/'].adapter.rooms[data.room];
-        console.log("this is the below this line")
-
-        console.log(data.room)
-        console.log("this is the room")
-        console.log(room);
-        console.log("this is the roomabove this line")
-      
-        if (room && room.length< 4) {
-            socket.join(data.room);
-            socket.id=data.name;
-            clients = io.sockets.adapter.rooms[data.room].sockets
-            for (var clientId in clients ) {
-               console.log(clientId) 
-                //this is the socket of each client in the room.
-                var clientSocket = io.sockets.connected[clientId];         
-                
-            }
-            console.log("............................")
-            io.in(data.room).emit('updateusers', clients,data.room)
-          //  io.in(data.room).emit('addUser', data.name);
-
-            io.in(data.room).emit('player', { name: data.name, room: data.room })
-        } else {
-            socket.emit('err', { message: 'Sorry, The room is full!' });
+              socket.on('joinTournament', function (data) {//{ name, room: roomID }
+              var room = io.nsps['/'].adapter.rooms[data.room];
+              var  username=data.name
+                console.log("this is the data.room passed to jointornament")
+                console.log(data.name)
+                console.log("this is the data.room passed to jointornament")
+                console.log(data.room)
+                console.log("......this is the room. made in join tournament........")
+                console.log(room);
+           
+                if (room && room.length< 4) {
+                    socket.join(data.room);
+                    socket.userName=username;
+            
+                        tornamentArray.forEach(function(tournamentObj){//to display all participants
+                        if(tournamentObj.getTournamentName()===data.room){
+                                console.log("testing")
+                                console.log(tournamentObj.getTournamentName())
+                                console.log(data.room)
+                                tournamentObj.setParticipants(username)
+                                io.sockets.in(data.room).emit('updateusers',tournamentObj.getParticipants(), data.room);
+                           }
+                         })
+                        participants = io.sockets.adapter.rooms[data.room].sockets//each socket id in the room
+                        console.log("....participants....")
+                        console.log(participants)
+           
+                   io.in(data.room).emit('player', { name: data.name, room: data.room })
+               } else {
+                  socket.emit('err', { message: 'Sorry, The room is full!' });
         }
-         usernames = {};
+       
     });
+    //........................................................................................................
+
+                        socket.on("createBracket",function(data){ //data={room:tornamentName}
+                        tornamentArray.forEach(function(tournamentObj){//to display all participants
+                          if(tournamentObj.getTournamentName()===data.room){                              
+                            tournamentObj.getParticipants()
+                            io.in(data.room).emit('showBracket', tournamentObj.getParticipants())                               }
+                             })                       
+                    })
   //.................................................................................................. 
 //send the game for the players
-socket.on('startGame', function (data) {
-    clients = io.sockets.adapter.rooms[data.room].sockets       
-    io.in(data.room).emit('sendGame', clients)
+    socket.on('startGame', function (data) {
+    participants = io.sockets.adapter.rooms[data.room].sockets       
+    io.in(data.room).emit('sendGame', participants)
    
 });
 //...............................................................................................
